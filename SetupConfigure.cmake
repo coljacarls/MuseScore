@@ -195,6 +195,25 @@ if(BUILD_CONFIGURATION STREQUAL "APP-WEB")
 endif()
 
 ###########################################
+# CONFIGURE: External App
+###########################################
+# An application shell that lives outside this repository and reuses the
+# MuseScore modules. MUE_EXTERNAL_APP_DIR must contain:
+#   cmake/Configure.cmake  - module switches, branding (included here)
+#   cmake/App.cmake        - executable name, icon, app.qrc (included by src/app)
+#   appshell/              - the "appshell" module (added by src/CMakeLists.txt)
+if(BUILD_CONFIGURATION STREQUAL "APP-EXTERNAL")
+    if (NOT MUE_EXTERNAL_APP_DIR)
+        message(FATAL_ERROR "MUE_EXTERNAL_APP_DIR must point to the external app directory")
+    endif()
+    file(TO_CMAKE_PATH "${MUE_EXTERNAL_APP_DIR}" MUE_EXTERNAL_APP_DIR)
+    set(MUE_CONFIGURATION_IS_APPEXTERNAL ON)
+    set(MUE_GENERAL_APP ON)
+    set(MUSE_MODULE_AUDIO_WORKMODE 3) # driver callback + worker rpc
+    include(${MUE_EXTERNAL_APP_DIR}/cmake/Configure.cmake)
+endif()
+
+###########################################
 # CONFIGURE: VTest
 ###########################################
 if(BUILD_CONFIGURATION STREQUAL "VTEST")

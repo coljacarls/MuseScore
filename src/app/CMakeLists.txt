@@ -100,6 +100,12 @@ set(LINK_LIB
     muse::draw
     )
 
+set(APP_QRC app.qrc)
+if (MUE_CONFIGURATION_IS_APPEXTERNAL)
+    # may override EXECUTABLE_NAME, WINDOWS_ICONS_RC and APP_QRC
+    include(${MUE_EXTERNAL_APP_DIR}/cmake/App.cmake)
+endif()
+
 macro(add_to_link_if_exists lib)
     if (TARGET ${lib})
         list(APPEND LINK_LIB ${lib})
@@ -201,7 +207,7 @@ endif()
 ###########################################
 # Resources
 ###########################################
-qt_add_resources(APP_RCC_SOURCES app.qrc)
+qt_add_resources(APP_RCC_SOURCES ${APP_QRC})
 if (OS_IS_WIN)
     qt_add_resources(APP_RCC_SOURCES app_win.qrc)
 endif()
@@ -306,6 +312,11 @@ target_include_directories(MuseScoreStudio PRIVATE
     ${MUSE_FRAMEWORK_PATH}/src/framework/global
     # end compat
 )
+
+if (MUE_CONFIGURATION_IS_APPEXTERNAL)
+    # The external app provides its own "appshell/..." headers (module, configuration, startup scenario)
+    target_include_directories(MuseScoreStudio BEFORE PRIVATE ${MUE_EXTERNAL_APP_DIR})
+endif()
 
 ###########################################
 # Link

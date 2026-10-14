@@ -125,8 +125,13 @@ int main(int argc, char** argv)
 #else
     QCoreApplication::setApplicationName(MUSE_APP_NAME_MACHINE_READABLE MUSE_APP_VERSION_MAJOR);
 #endif
+#ifdef MUE_APP_ORGANIZATION_NAME
+    QCoreApplication::setOrganizationName(MUE_APP_ORGANIZATION_NAME);
+    QCoreApplication::setOrganizationDomain(MUE_APP_ORGANIZATION_DOMAIN);
+#else
     QCoreApplication::setOrganizationName("MuseScore");
     QCoreApplication::setOrganizationDomain("musescore.org");
+#endif
     QCoreApplication::setApplicationVersion(MUSE_APP_VERSION);
 
 #if !defined(Q_OS_WIN) && !defined(Q_OS_DARWIN) && !defined(Q_OS_WASM)
