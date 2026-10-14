@@ -73,6 +73,7 @@ void AppShellModule::resolveImports()
         ir->registerPageUri(Uri("musescore://home"));
         ir->registerPageUri(Uri("musescore://notation"));
         ir->registerPageUri(Uri("musescore://notation/review"));
+        ir->registerPageUri(Uri("musescore://notation/rehearsal"));
         ir->registerPageUri(Uri("musescore://sequencer"));
         ir->registerPageUri(Uri("musescore://publish"));
         ir->registerPageUri(Uri("musescore://devtools"));

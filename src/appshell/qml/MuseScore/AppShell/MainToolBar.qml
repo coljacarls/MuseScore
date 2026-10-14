@@ -79,6 +79,7 @@ Item {
         delegate: PageTabButton {
             required property bool isTitleBold
             required property bool isChecked
+            required property bool isEnabled
             required title
             required property string uri
             required property int index
@@ -94,6 +95,7 @@ Item {
             navigation.panel: navPanel
             navigation.order: index
 
+            enabled: isEnabled
             checked: isChecked
 
             onToggled: {

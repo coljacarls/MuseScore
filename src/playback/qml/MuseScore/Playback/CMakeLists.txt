@@ -47,6 +47,8 @@ qt_add_qml_module(playback_qml
         playbackloadingmodel.h
         playbacktoolbarmodel.cpp
         playbacktoolbarmodel.h
+        rehearsaltracksmodel.cpp
+        rehearsaltracksmodel.h
         soundflagsettingsmodel.cpp
         soundflagsettingsmodel.h
         soundprofilesmodel.cpp
@@ -55,6 +57,7 @@ qt_add_qml_module(playback_qml
         internal/AudioProcessingProgressBar.qml
         internal/AudioResourceControl.qml
         internal/AuxSendControl.qml
+        internal/HorizontalVolumeSlider.qml
         internal/KnobControl.qml
         internal/MeasureAndBeatFields.qml
         internal/MixerAuxSendsSection.qml
@@ -79,6 +82,7 @@ qt_add_qml_module(playback_qml
         OnlineSoundsStatusView.qml
         PlaybackLoadingInfo.qml
         PlaybackToolBar.qml
+        RehearsalTracksPanel.qml
         SoundFlagPopup.qml
         SoundProfilesDialog.qml
     IMPORTS

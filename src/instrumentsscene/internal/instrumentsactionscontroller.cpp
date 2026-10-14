@@ -41,6 +41,7 @@ using namespace muse;
 using namespace muse::actions;
 
 static const muse::Uri NOTATION_REVIEW_PAGE_URI("musescore://notation/review");
+static const muse::Uri NOTATION_REHEARSAL_PAGE_URI("musescore://notation/rehearsal");
 
 void InstrumentsActionsController::init()
 {
@@ -65,7 +66,8 @@ bool InstrumentsActionsController::canReceiveAction(const ActionCode&) const
         return false;
     }
 
-    return interactive()->currentUri().val != NOTATION_REVIEW_PAGE_URI;
+    const muse::Uri currentUri = interactive()->currentUri().val;
+    return currentUri != NOTATION_REVIEW_PAGE_URI && currentUri != NOTATION_REHEARSAL_PAGE_URI;
 }
 
 void InstrumentsActionsController::selectInstruments()

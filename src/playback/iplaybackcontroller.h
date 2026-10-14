@@ -104,6 +104,12 @@ public:
     virtual const SoloMuteState& trackSoloMuteState(const engraving::InstrumentTrackId& trackId) const = 0;
     virtual void setTrackSoloMuteState(const engraving::InstrumentTrackId& trackId, const SoloMuteState& state) = 0;
 
+    //! Session-only mix override (rehearsal page): applied on top of the score mix,
+    //! takes precedence over the score's solo/mute states, never persisted
+    virtual bool isSessionMixOverrideActive() const = 0;
+    virtual void setSessionMixOverride(const SessionMix& mix) = 0;
+    virtual void clearSessionMixOverride() = 0;
+
     struct PlayParams {
         PlayParams() {}
 
@@ -115,6 +121,7 @@ public:
                               const PlayParams& params = PlayParams(), bool isMidi = false) = 0;
     virtual void playNotes(const engraving::NoteValList& notes, engraving::staff_idx_t staffIdx, const engraving::Segment* segment,
                            const PlayParams& params = PlayParams()) = 0;
+
     virtual void playMetronome(int tick) = 0;
 
     virtual void triggerControllers(const muse::mpe::ControllerChangeEventList& list, engraving::staff_idx_t staffIdx, int tick) = 0;

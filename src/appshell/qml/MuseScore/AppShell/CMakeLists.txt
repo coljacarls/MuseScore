@@ -46,6 +46,8 @@ qt_add_qml_module(appshell_qml
         notationstatusbarmodel.h
         PublishPage/publishtoolbarmodel.cpp
         PublishPage/publishtoolbarmodel.h
+        RehearsalPage/rehearsalpagemodel.cpp
+        RehearsalPage/rehearsalpagemodel.h
         welcomedialogmodel.cpp
         welcomedialogmodel.h
     QML_FILES
@@ -83,6 +85,9 @@ qt_add_qml_module(appshell_qml
         platform/PlatformMenuBar.qml
         PublishPage/PublishPage.qml
         PublishPage/PublishToolBar.qml
+        RehearsalPage/RehearsalControls.qml
+        RehearsalPage/RehearsalNotationView.qml
+        RehearsalPage/RehearsalPage.qml
         WelcomeDialog.qml
         WindowContent.qml
     RESOURCES
@@ -160,4 +165,5 @@ target_include_directories(appshell_qml PRIVATE
     DevTools/Settings
     FirstLaunchSetup
     PublishPage
+    RehearsalPage
 )

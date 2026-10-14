@@ -70,6 +70,9 @@ class AbstractNotationPaintView : public muse::uicomponents::QuickPaintedView, p
     Q_PROPERTY(bool isMainView READ isMainView WRITE setIsMainView NOTIFY isMainViewChanged)
 
     Q_PROPERTY(bool readOnly READ readonly WRITE setReadonly NOTIFY readonlyChanged)
+    Q_PROPERTY(bool tapToSeek READ tapToSeek WRITE setTapToSeek NOTIFY tapToSeekChanged)
+    //! ViewMode used instead of the notation's view state (which is persisted); -1 = no override
+    Q_PROPERTY(int viewModeOverride READ viewModeOverride WRITE setViewModeOverride NOTIFY viewModeOverrideChanged)
 
     muse::GlobalInject<INotationConfiguration> notationConfiguration;
     muse::GlobalInject<INotationSceneConfiguration> configuration;
@@ -165,6 +168,12 @@ public:
     bool readonly() const;
     void setReadonly(bool readonly);
 
+    bool tapToSeek() const;
+    void setTapToSeek(bool tapToSeek);
+
+    int viewModeOverride() const;
+    void setViewModeOverride(int viewMode);
+
 signals:
     void showContextMenuRequested(int elementType, const QPointF& viewPos);
     void hideContextMenuRequested();
@@ -189,6 +198,8 @@ signals:
     void isMainViewChanged(bool isMainView);
 
     void readonlyChanged();
+    void tapToSeekChanged();
+    void viewModeOverrideChanged();
 
 protected:
     INotationPtr notation() const;
@@ -272,6 +283,8 @@ private:
     void onPlayingChanged();
     void updatePlaybackCursorInterpolated();
     void movePlaybackCursor(muse::midi::tick_t tick);
+    void movePlaybackCursorToSecs(muse::secs_t secs);
+    bool isPlaybackCursorShown() const;
     bool shouldAdjustCanvasVerticallyDuringPlayback(const muse::RectF& cursorRect);
 
     void onPlaybackCursorRectChanged();
@@ -305,6 +318,8 @@ private:
     qreal m_previousHorizontalScrollPosition = 0;
 
     bool m_readonly = false;
+    bool m_tapToSeek = false;
+    int m_viewModeOverride = -1;
     bool m_publishMode = false;
     int m_lastAcceptedKey = -1;
     bool m_isMainView = false;

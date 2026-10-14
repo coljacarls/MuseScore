@@ -33,6 +33,7 @@ using namespace mu::playback;
 using namespace mu::notation;
 
 static const muse::Uri PROJECT_PAGE_URI("musescore://notation");
+static const muse::Uri NOTATION_REHEARSAL_PAGE_URI("musescore://notation/rehearsal");
 
 std::string PlaybackCommandsState::moduleName() const
 {
@@ -216,7 +217,11 @@ bool PlaybackCommandsState::isProjectOpened() const
         return false;
     }
 
-    if (!interactive() || !interactive()->isOpened(PROJECT_PAGE_URI).val) {
+    if (!interactive()) {
+        return false;
+    }
+
+    if (!interactive()->isOpened(PROJECT_PAGE_URI).val && !interactive()->isOpened(NOTATION_REHEARSAL_PAGE_URI).val) {
         return false;
     }
 

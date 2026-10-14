@@ -88,6 +88,33 @@ static std::string resolveAuxTrackTitle(aux_channel_idx_t index, const AudioOutp
     return muse::mtrc("playback", "Aux %1").arg(index + 1).toStdString();
 }
 
+static AutomatableValue<volume_db_t> offsetVolume(const AutomatableValue<volume_db_t>& volume, float offsetDb)
+{
+    if (const volume_db_t* value = std::get_if<volume_db_t>(&volume.value())) {
+        return std::max(*value + offsetDb, VOLUME_DB_MIN);
+    }
+
+    //! NOTE The engine maps the envelope values [0; 1] linearly onto [VOLUME_DB_MIN; VOLUME_DB_MAX]
+    const real_t offset = offsetDb / (VOLUME_DB_MAX - VOLUME_DB_MIN).raw();
+    auto shift = [offset](real_t value) {
+        return std::clamp(value + offset, real_t(0.0), real_t(1.0));
+    };
+
+    AutomationEnvelope envelope;
+    for (const auto& [secs, point] : std::get<AutomationEnvelope>(volume.value())) {
+        mpe::AutomationPoint shifted = point;
+        shifted.outValue = shift(point.outValue);
+
+        if (auto* arrival = std::get_if<mpe::AutomationPoint::ExplicitArrival>(&shifted.inValue)) {
+            arrival->value = shift(arrival->value);
+        }
+
+        envelope.insert({ secs, shifted });
+    }
+
+    return envelope;
+}
+
 PlaybackController::PlaybackController(const muse::modularity::ContextPtr& iocCtx)
     : muse::Contextable(iocCtx), m_onlineSoundsController(std::make_unique<OnlineSoundsController>(iocCtx))
 {
@@ -352,6 +379,77 @@ void PlaybackController::setTrackSoloMuteState(const InstrumentTrackId& trackId,
     }
 
     m_notation->soloMuteState()->setTrackSoloMuteState(trackId, state);
+}
+
+bool PlaybackController::isSessionMixOverrideActive() const
+{
+    return m_sessionMix.has_value();
+}
+
+void PlaybackController::setSessionMixOverride(const SessionMix& mix)
+{
+    m_sessionMix = mix;
+    updateSoloMuteStates();
+}
+
+void PlaybackController::clearSessionMixOverride()
+{
+    if (!m_sessionMix) {
+        return;
+    }
+
+    m_sessionMix.reset();
+    updateSoloMuteStates();
+}
+
+bool PlaybackController::isSessionMixAppliedTo(const InstrumentTrackId& instrumentTrackId) const
+{
+    if (!m_sessionMix || m_isExportingAudio || !notationPlayback()) {
+        return false;
+    }
+
+    return instrumentTrackId != notationPlayback()->metronomeTrackId() && muse::contains(*m_sessionMix, instrumentTrackId);
+}
+
+ControlParams PlaybackController::applySessionMix(const InstrumentTrackId& instrumentTrackId, ControlParams control)
+{
+    const SessionTrackMix& mix = m_sessionMix->at(instrumentTrackId);
+
+    control.muted = !mix.audible;
+    if (notationPlayback()->isChordSymbolsTrack(instrumentTrackId) && !notationConfiguration()->isPlayChordSymbolsEnabled()) {
+        control.muted = true;
+    }
+
+    control.volume = offsetVolume(control.volume, mix.gainOffsetDb);
+
+    std::vector<ControlParams>& echoes = m_sessionMixEchoes[instrumentTrackId];
+    if (echoes.empty() || echoes.back() != control) {
+        echoes.push_back(control);
+    }
+
+    return control;
+}
+
+bool PlaybackController::consumeSessionMixEcho(const InstrumentTrackId& instrumentTrackId, const ControlParams& params)
+{
+    auto it = m_sessionMixEchoes.find(instrumentTrackId);
+    if (it == m_sessionMixEchoes.end()) {
+        return false;
+    }
+
+    std::vector<ControlParams>& echoes = it->second;
+    auto echo = std::find(echoes.begin(), echoes.end(), params);
+    if (echo != echoes.end()) {
+        echoes.erase(echoes.begin(), echo + 1);
+        return true;
+    }
+
+    //! NOTE The params are reported in the order they were sent, so the remaining ones will never come back
+    if (!isSessionMixAppliedTo(instrumentTrackId)) {
+        m_sessionMixEchoes.erase(it);
+    }
+
+    return false;
 }
 
 void PlaybackController::playElements(const std::vector<const notation::EngravingItem*>& elements, const PlayParams& params, bool isMidi)
@@ -1448,7 +1546,12 @@ void PlaybackController::resendAutomatedControlParams(std::optional<InstrumentTr
         }
 
         const AudioOutputParams outParams = trackOutputParams(pair.first);
-        playback()->setControlParams(pair.second, trackControlParams(pair.first, outParams, rebuildVolume, rebuildPan));
+        ControlParams control = trackControlParams(pair.first, outParams, rebuildVolume, rebuildPan);
+        if (isSessionMixAppliedTo(pair.first)) {
+            control = applySessionMix(pair.first, control);
+        }
+
+        playback()->setControlParams(pair.second, control);
     }
 }
 
@@ -1479,6 +1582,7 @@ void PlaybackController::removeTrack(const InstrumentTrackId& instrumentTrackId)
     m_trackRemoved.send(search->second);
     m_instrumentTrackIdMap.erase(instrumentTrackId);
     m_automatedControlParamsCache.erase(instrumentTrackId);
+    m_sessionMixEchoes.erase(instrumentTrackId);
 }
 
 void PlaybackController::onTrackNewlyAdded(const InstrumentTrackId& instrumentTrackId)
@@ -1592,6 +1696,10 @@ void PlaybackController::subscribeOnAudioParamsChanges()
         });
 
         if (instrumentIt != m_instrumentTrackIdMap.end()) {
+            if (consumeSessionMixEcho(instrumentIt->first, params) || isSessionMixAppliedTo(instrumentIt->first)) {
+                return;
+            }
+
             AudioOutputParams outParams = audioSettings()->trackOutputParams(instrumentIt->first);
             outParams.setControl(params);
             audioSettings()->setTrackOutputParams(instrumentIt->first, outParams);
@@ -1774,8 +1882,13 @@ void PlaybackController::updateSoloMuteStates()
         params.muted = soloMuteState.mute || shouldForceMute;
         params.forceMute = shouldForceMute;
 
+        ControlParams control = trackControlParams(instrumentTrackId, params, /*rebuildVolume*/ false, /*rebuildPan*/ false);
+        if (isSessionMixAppliedTo(instrumentTrackId)) {
+            control = applySessionMix(instrumentTrackId, control);
+        }
+
         audio::TrackId trackId = m_instrumentTrackIdMap.at(instrumentTrackId);
-        playback()->setControlParams(trackId, trackControlParams(instrumentTrackId, params, /*rebuildVolume*/ false, /*rebuildPan*/ false));
+        playback()->setControlParams(trackId, control);
     }
 
     updateAuxMuteStates();
@@ -1973,6 +2086,9 @@ void PlaybackController::setMasterNotation(notation::IMasterNotationPtr masterNo
     }
 
     m_masterNotation = masterNotation;
+
+    m_sessionMix.reset();
+    m_sessionMixEchoes.clear();
 
     m_totalPlayTimeChanged.notify();
 

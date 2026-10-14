@@ -39,6 +39,13 @@ AppWindow {
     WindowContent {
         id: window
 
-        anchors.fill: parent
+        //! NOTE: The title bar and the menu bar are native; the system hides them
+        //! in fullscreen. In the immersive mode of the rehearsal page,
+        //! the main tab row is moved outside the window
+        anchors.top: parent.top
+        anchors.topMargin: window.immersiveMode ? -window.immersiveTopOffset : 0
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
     }
 }

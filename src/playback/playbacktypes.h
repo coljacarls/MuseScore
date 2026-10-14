@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include <unordered_map>
+
 #include <QTime>
 
 #include "global/containers.h"
@@ -32,6 +34,15 @@
 namespace mu::playback {
 static constexpr muse::audio::aux_channel_idx_t AUX_CHANNEL_NUM = 2;
 static constexpr muse::audio::aux_channel_idx_t REVERB_CHANNEL_IDX = 0;
+
+//! Session-only mix override used by the rehearsal page.
+//! Never written to the project and never marks it as modified.
+struct SessionTrackMix {
+    bool audible = true;
+    float gainOffsetDb = 0.f; // relative to the track's volume in the score mix, <= 0
+};
+
+using SessionMix = std::unordered_map<engraving::InstrumentTrackId, SessionTrackMix>;
 
 enum class PlaybackCursorType {
     SMOOTH,

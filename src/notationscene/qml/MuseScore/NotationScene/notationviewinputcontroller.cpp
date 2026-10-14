@@ -27,6 +27,7 @@
 #include <QApplication>
 #include <QMimeData>
 #include <QQuickItem>
+#include <QStyleHints>
 #include <QTimer>
 #include <QtMath>
 
@@ -38,9 +39,13 @@
 #include "engraving/dom/drumset.h"
 #include "engraving/dom/fret.h"
 #include "engraving/dom/harmony.h"
+#include "engraving/dom/measure.h"
 #include "engraving/dom/mscore.h"
+#include "engraving/dom/score.h"
+#include "engraving/dom/segment.h"
 #include "engraving/dom/shadownote.h"
 #include "engraving/dom/staff.h"
+#include "engraving/dom/utils.h"
 
 #include "notation/inotation.h"
 #include "notation/inotationelements.h" // IWYU pragma: keep
@@ -269,6 +274,50 @@ bool NotationViewInputController::readonly() const
 void NotationViewInputController::setReadonly(bool readonly)
 {
     m_readonly = readonly;
+}
+
+bool NotationViewInputController::tapToSeek() const
+{
+    return m_tapToSeek;
+}
+
+void NotationViewInputController::setTapToSeek(bool tapToSeek)
+{
+    m_tapToSeek = tapToSeek;
+}
+
+bool NotationViewInputController::isTapToSeekActive() const
+{
+    return m_readonly && m_tapToSeek;
+}
+
+int NotationViewInputController::tapToSeekDragThreshold() const
+{
+    return std::max(4, QGuiApplication::styleHints()->startDragDistance());
+}
+
+void NotationViewInputController::seekToBeatAt(const PointF& logicPos)
+{
+    const INotationPtr notation = currentNotation();
+    if (!notation || !notation->elements()) {
+        return;
+    }
+
+    const Score* score = notation->elements()->msScore();
+    if (!score) {
+        return;
+    }
+
+    Segment* segment = nullptr;
+    const Measure* measure = score->pos2measure(logicPos, nullptr, nullptr, &segment, nullptr);
+    if (!measure) {
+        return;
+    }
+
+    const Fraction tick = segment ? segment->tick() : measure->tick();
+    const MeasureBeat measureBeat = findBeat(score, tick.ticks());
+
+    playbackController()->seekBeat(measureBeat.measureIndex, static_cast<int>(measureBeat.beat));
 }
 
 INotationPtr NotationViewInputController::currentNotation() const
@@ -584,6 +633,8 @@ void NotationViewInputController::endOfScore()
 
 void NotationViewInputController::pinchToZoom(qreal scaleFactor, const QPointF& pos)
 {
+    m_isTapCancelled = true;
+
     double scale = m_view->currentScaling() * scaleFactor;
     setScaling(scale, PointF::fromQPointF(pos));
 }
@@ -651,9 +702,15 @@ void NotationViewInputController::mousePressEvent(QMouseEvent* event)
 
     m_shouldStartEditOnLeftClickRelease = false;
     m_ignoreNextMouseContextMenuEvent = false;
+    m_isTapCancelled = false;
 
     // When using MiddleButton, just start moving the canvas
     if (button == Qt::MiddleButton) {
+        return;
+    }
+
+    // Tap to seek: the seek happens on release, so that dragging keeps moving the canvas
+    if (isTapToSeekActive()) {
         return;
     }
 
@@ -1058,7 +1115,8 @@ void NotationViewInputController::mouseMoveEvent(QMouseEvent* event)
                                || viewInteraction()->isOutgoingDragStarted();
     if (!isDragStarted) {
         // only start drag operations after a minimum of movement:
-        const bool canStartDrag = physicalDragDelta.manhattanLength() > 4;
+        const int dragThreshold = isTapToSeekActive() ? tapToSeekDragThreshold() : 4;
+        const bool canStartDrag = physicalDragDelta.manhattanLength() > dragThreshold;
         if (!canStartDrag) {
             return;
         }
@@ -1192,6 +1250,24 @@ void NotationViewInputController::startDragElements(ElementType elementsType, co
 void NotationViewInputController::mouseReleaseEvent(QMouseEvent* event)
 {
     if (m_mouseDownInfo.dragAction == MouseDownInfo::Nothing) {
+        return;
+    }
+
+    if (isTapToSeekActive()) {
+        const QPointF physicalDelta = event->pos() - m_mouseDownInfo.physicalBeginPoint;
+        const bool isTap = event->button() == Qt::LeftButton
+                           && !m_isCanvasDragged
+                           && !m_isTapCancelled
+                           && physicalDelta.manhattanLength() <= tapToSeekDragThreshold();
+
+        m_mouseDownInfo.dragAction = MouseDownInfo::Nothing;
+        m_isCanvasDragged = false;
+        m_isTapCancelled = false;
+
+        if (isTap) {
+            seekToBeatAt(m_mouseDownInfo.logicalBeginPoint);
+        }
+
         return;
     }
 

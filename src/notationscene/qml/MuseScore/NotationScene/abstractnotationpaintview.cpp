@@ -122,6 +122,7 @@ void AbstractNotationPaintView::load()
     m_continuousPanel = std::make_unique<ContinuousPanel>();
 
     m_inputController->setReadonly(m_readonly);
+    m_inputController->setTapToSeek(m_tapToSeek);
     m_inputController->init();
 
     m_elapsedTimer.start();
@@ -152,6 +153,11 @@ void AbstractNotationPaintView::load()
     globalContext()->playbackState()->playbackPositionChanged().onReceive(this, [this](secs_t secs) {
         m_lastPlaybackPosition = secs;
         m_lastPlaybackPositionUpdateTimeNs = m_elapsedTimer.nsecsElapsed();
+
+        //! NOTE While stopped, the cursor shows where playback will start
+        if (m_tapToSeek && !globalContext()->playbackState()->isPlaying()) {
+            movePlaybackCursorToSecs(secs);
+        }
     }, async::Asyncable::Mode::SetReplace);
 
     globalContext()->playbackState()->playbackStatusChanged().onReceive(this, [this](audio::PlaybackStatus) {
@@ -271,8 +277,14 @@ void AbstractNotationPaintView::onLoadNotation(INotationPtr)
 
     if (publishMode()) {
         m_notation->painting()->setViewMode(ViewMode::PAGE);
+    } else if (m_viewModeOverride >= 0) {
+        m_notation->painting()->setViewMode(static_cast<ViewMode>(m_viewModeOverride));
     } else {
         m_notation->painting()->setViewMode(m_notation->viewState()->viewMode());
+    }
+
+    if (m_tapToSeek) {
+        onPlayingChanged();
     }
 
     m_notation->notationChanged().onReceive(this, [this](const RectF& updateRect) {
@@ -1506,6 +1518,51 @@ void AbstractNotationPaintView::setReadonly(bool readonly)
     emit readonlyChanged();
 }
 
+bool AbstractNotationPaintView::tapToSeek() const
+{
+    return m_tapToSeek;
+}
+
+void AbstractNotationPaintView::setTapToSeek(bool tapToSeek)
+{
+    if (m_tapToSeek == tapToSeek) {
+        return;
+    }
+
+    m_tapToSeek = tapToSeek;
+    if (m_inputController) {
+        m_inputController->setTapToSeek(m_tapToSeek);
+    }
+
+    if (m_playbackCursor) {
+        onPlayingChanged();
+    }
+
+    emit tapToSeekChanged();
+}
+
+int AbstractNotationPaintView::viewModeOverride() const
+{
+    return m_viewModeOverride;
+}
+
+void AbstractNotationPaintView::setViewModeOverride(int viewMode)
+{
+    if (m_viewModeOverride == viewMode) {
+        return;
+    }
+
+    m_viewModeOverride = viewMode;
+
+    if (m_notation) {
+        m_notation->painting()->setViewMode(m_viewModeOverride >= 0
+                                            ? static_cast<ViewMode>(m_viewModeOverride)
+                                            : m_notation->viewState()->viewMode());
+    }
+
+    emit viewModeOverrideChanged();
+}
+
 void AbstractNotationPaintView::clear()
 {
     Transform oldMatrix = m_matrix;
@@ -1566,10 +1623,10 @@ void AbstractNotationPaintView::onPlayingChanged()
     TRACEFUNC;
 
     bool isPlaying = globalContext()->playbackState()->isPlaying();
-    m_playbackCursor->setVisible(isPlaying);
+    m_playbackCursor->setVisible(isPlaybackCursorShown());
 
     if (m_playbackCursorItem) {
-        m_playbackCursorItem->setVisible(isPlaying);
+        m_playbackCursorItem->setVisible(isPlaybackCursorShown());
     }
 
     m_autoScrollEnabled = true;
@@ -1582,8 +1639,28 @@ void AbstractNotationPaintView::onPlayingChanged()
         m_updatePlaybackCursorInterpolatedTimer.start(23); // ~43 FPS (1024 buffer + 44100)
     } else {
         m_updatePlaybackCursorInterpolatedTimer.stop();
+
+        if (m_tapToSeek) {
+            movePlaybackCursorToSecs(globalContext()->playbackState()->playbackPosition());
+        }
+
         scheduleRedraw();
     }
+}
+
+bool AbstractNotationPaintView::isPlaybackCursorShown() const
+{
+    return m_tapToSeek || globalContext()->playbackState()->isPlaying();
+}
+
+void AbstractNotationPaintView::movePlaybackCursorToSecs(muse::secs_t secs)
+{
+    const INotationPlaybackPtr playback = notationPlayback();
+    if (!playback) {
+        return;
+    }
+
+    movePlaybackCursor(playback->secToTick(secs));
 }
 
 void AbstractNotationPaintView::updatePlaybackCursorInterpolated()
@@ -1614,6 +1691,16 @@ void AbstractNotationPaintView::movePlaybackCursor(muse::midi::tick_t tick)
     }
 
     if (!m_playbackCursor->visible() || newCursorRect.isNull()) {
+        return;
+    }
+
+    //! NOTE: While stopped, the user positions the cursor by tapping:
+    //! the view must not follow it, only bring it into view when it is outside (e.g. "to start")
+    if (m_tapToSeek && !globalContext()->playbackState()->isPlaying()) {
+        if (!viewport().intersects(newCursorRect)) {
+            adjustCanvasPosition(newCursorRect, true /*adjustVertically*/);
+        }
+
         return;
     }
 
@@ -1771,7 +1858,7 @@ void AbstractNotationPaintView::setPlaybackCursorItem(QQuickItem* cursor)
     m_playbackCursorItem = cursor;
 
     if (m_playbackCursorItem) {
-        m_playbackCursorItem->setVisible(globalContext()->playbackState()->isPlaying());
+        m_playbackCursorItem->setVisible(isPlaybackCursorShown());
         m_playbackCursorItem->setEnabled(false); // ignore mouse & keyboard events
         m_playbackCursorItem->setProperty("color", notationConfiguration()->playbackCursorColor());
 

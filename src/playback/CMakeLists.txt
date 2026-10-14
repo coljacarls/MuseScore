@@ -36,6 +36,8 @@ target_sources(playback PRIVATE
     internal/playbackcommandscontroller.h
     internal/playbackcontroller.cpp
     internal/playbackcontroller.h
+    internal/rehearsalmix.cpp
+    internal/rehearsalmix.h
     internal/onlinesoundscontroller.cpp
     internal/onlinesoundscontroller.h
     internal/playbackcommandsregister.cpp

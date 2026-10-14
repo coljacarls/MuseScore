@@ -33,6 +33,7 @@ import MuseScore.AppShell
 import "./HomePage"
 import "./NotationPage"
 import "./NotationReviewPage"
+import "./RehearsalPage"
 import "./PublishPage"
 import "./DevTools"
 
@@ -40,6 +41,12 @@ DockWindow {
     id: root
 
     objectName: "WindowContent"
+
+    //! Immersive mode of the rehearsal page: the platform Main.qml hides the title bar / menu
+    //! and shifts this item up by `immersiveTopOffset`, so that the main tab row
+    //! lies outside the window and the page content starts at the top of the screen
+    readonly property bool immersiveMode: rehearsalPage.immersive
+    readonly property real immersiveTopOffset: rehearsalPage.immersiveTopOffset
 
     onPageLoaded: {
         console.log("WindowContent::onPageLoaded")
@@ -59,6 +66,7 @@ DockWindow {
         id: topToolbarKeyNavSec
         name: "TopTool"
         order: 1
+        enabled: !root.immersiveMode
     }
 
     toolBars: [
@@ -108,6 +116,13 @@ DockWindow {
 
         NotationReviewPage {
             topToolbarKeyNavSec: topToolbarKeyNavSec
+        },
+
+        RehearsalPage {
+            id: rehearsalPage
+
+            topToolbarKeyNavSec: topToolbarKeyNavSec
+            windowContent: root
         },
 
         PublishPage {

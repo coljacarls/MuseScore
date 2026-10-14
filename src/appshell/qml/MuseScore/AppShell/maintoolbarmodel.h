@@ -65,10 +65,12 @@ private:
         TitleRole = Qt::UserRole + 1,
         UriRole,
         IsTitleBoldRole,
-        IsCheckedRole
+        IsCheckedRole,
+        IsEnabledRole
     };
 
     void updateNotationPageItem();
+    void updateRehearsalPageItem();
     void updateCheckedState();
 
     QList<QVariantMap> m_items;

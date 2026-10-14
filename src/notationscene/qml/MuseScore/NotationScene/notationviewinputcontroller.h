@@ -151,6 +151,9 @@ public:
     bool readonly() const;
     void setReadonly(bool readonly);
 
+    bool tapToSeek() const;
+    void setTapToSeek(bool tapToSeek);
+
     void pinchToZoom(qreal scaleFactor, const QPointF& pos);
     void wheelEvent(QWheelEvent* event);
     void mousePressEvent(QMouseEvent* event);
@@ -226,6 +229,10 @@ private:
     void handleRightClick(const ClickContext& ctx);
     void handleLeftClickRelease(const QPointF& releasePoint);
 
+    bool isTapToSeekActive() const;
+    int tapToSeekDragThreshold() const;
+    void seekToBeatAt(const muse::PointF& logicPos);
+
     bool startTextEditingAllowed() const;
     void updateTextCursorPosition();
 
@@ -238,6 +245,8 @@ private:
     QList<int> m_possibleZoomPercentages;
 
     bool m_readonly = false;
+    bool m_tapToSeek = false;
+    bool m_isTapCancelled = false;
     bool m_isCanvasDragged = false;
     bool m_tripleClickPending = false;
 

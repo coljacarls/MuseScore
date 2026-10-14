@@ -22,12 +22,19 @@
 #include <gmock/gmock.h>
 
 #include "mocks/controlledviewmock.h"
+#include "context/tests/mocks/globalcontextmock.h"
+#include "notation/tests/mocks/notationmock.h"
 #include "notation/tests/mocks/notationconfigurationmock.h"
 #include "notation/tests/mocks/notationinteractionmock.h"
 #include "notation/tests/mocks/notationselectionmock.h"
 #include "notation/tests/mocks/notationselectionrangemock.h"
 #include "playback/tests/mocks/playbackcontrollermock.h"
 
+#include "notation/inotationelements.h"
+
+#include "engraving/dom/measure.h"
+#include "engraving/dom/segment.h"
+#include "engraving/dom/system.h"
 #include "engraving/tests/utils/scorerw.h"
 
 #include "notationscene/qml/MuseScore/NotationScene/notationviewinputcontroller.h"
@@ -111,6 +118,15 @@ public:
 
         QWheelEvent* ev = new QWheelEvent(pos,  globalPos,  pixelDelta,  angleDelta,
                                           buttons, modifiers, Qt::ScrollPhase::NoScrollPhase, false);
+
+        m_events << ev;
+
+        return ev;
+    }
+
+    QMouseEvent* make_mouseEvent(QEvent::Type type, Qt::MouseButton button, Qt::MouseButtons buttons, QPointF pos) const
+    {
+        QMouseEvent* ev = new QMouseEvent(type, pos, pos, button, buttons, Qt::NoModifier);
 
         m_events << ev;
 
@@ -942,4 +958,114 @@ TEST_F(NotationViewInputControllerTests, Mouse_Press_On_Range_Context_Menu_New_S
 
     //! [WHEN] User pressed right mouse button with NoModifier on the selected measure
     m_controller->mousePressEvent(make_mousePressEvent(Qt::RightButton, Qt::NoModifier, QPointF(100, 100)));
+}
+
+class TestNotationElements : public INotationElements
+{
+public:
+    explicit TestNotationElements(engraving::Score* score)
+        : m_score(score) {}
+
+    engraving::Score* msScore() const override { return m_score; }
+    std::vector<EngravingItem*> search(const QString&) const override { return {}; }
+    std::vector<EngravingItem*> elements(const FilterElementsOptions&) const override { return {}; }
+    Measure* measure(const int) const override { return nullptr; }
+    const PageList& pages() const override { return m_pages; }
+    const Page* pageByPoint(const muse::PointF&) const override { return nullptr; }
+
+private:
+    engraving::Score* m_score = nullptr;
+    PageList m_pages;
+};
+
+class NotationViewInputControllerTapToSeekTests : public NotationViewInputControllerTests
+{
+public:
+    void SetUp() override
+    {
+        NotationViewInputControllerTests::SetUp();
+
+        m_score = engraving::ScoreRW::readScore(TEST_SCORE_PATH);
+
+        m_notation = std::make_shared<NiceMock<NotationMock> >();
+        ON_CALL(*m_notation, elements())
+        .WillByDefault(Return(std::make_shared<TestNotationElements>(m_score)));
+
+        m_globalContext = std::make_shared<NiceMock<context::GlobalContextMock> >();
+        ON_CALL(*m_globalContext, currentNotation())
+        .WillByDefault(Return(m_notation));
+        m_controller->globalContext.set(m_globalContext);
+
+        m_controller->setReadonly(true);
+        m_controller->setTapToSeek(true);
+    }
+
+    void TearDown() override
+    {
+        NotationViewInputControllerTests::TearDown();
+        delete m_score;
+    }
+
+    muse::PointF segmentCanvasPos(const engraving::Segment* segment) const
+    {
+        const engraving::System* system = segment->measure()->system();
+        const double staffMiddleY = system->staff(0)->bbox().y() + system->staff(0)->bbox().height() / 2;
+        return muse::PointF(segment->canvasPos().x(), system->canvasPos().y() + staffMiddleY);
+    }
+
+    engraving::MasterScore* m_score = nullptr;
+    std::shared_ptr<NotationMock> m_notation;
+    std::shared_ptr<context::GlobalContextMock> m_globalContext;
+};
+
+/**
+ * @brief TapToSeek_Tap_SeeksToBeat
+ * @details Read-only view with tap to seek: a tap on a note seeks playback to its measure and beat on release
+ */
+TEST_F(NotationViewInputControllerTapToSeekTests, TapToSeek_Tap_SeeksToBeat)
+{
+    //! [GIVEN] The user taps the third chord of the first measure (four quarter notes)
+    engraving::Measure* measure = m_score->firstMeasure();
+    engraving::Segment* segment = measure->first(engraving::SegmentType::ChordRest);
+    ASSERT_TRUE(segment);
+    segment = segment->next(engraving::SegmentType::ChordRest);
+    ASSERT_TRUE(segment);
+    segment = segment->next(engraving::SegmentType::ChordRest);
+    ASSERT_TRUE(segment);
+
+    const muse::PointF tapPos = segmentCanvasPos(segment);
+    ON_CALL(m_view, toLogical(::testing::An<const QPointF&>()))
+    .WillByDefault(Return(tapPos));
+    ON_CALL(m_view, toLogical(::testing::An<const muse::PointF&>()))
+    .WillByDefault(Return(tapPos));
+
+    const int expectedMeasureIndex = measure->index();
+    const int expectedBeat = segment->rtick().ticks() / engraving::Constants::DIVISION;
+
+    //! [THEN] Nothing is seeked on press, only on release
+    EXPECT_CALL(*m_playbackController, seekElement(_, _))
+    .Times(0);
+    EXPECT_CALL(*m_playbackController, seekBeat(expectedMeasureIndex, expectedBeat, _))
+    .Times(1);
+
+    //! [WHEN] Press and release at the same position
+    m_controller->mousePressEvent(make_mousePressEvent(Qt::LeftButton));
+    m_controller->mouseReleaseEvent(make_mouseEvent(QEvent::MouseButtonRelease, Qt::LeftButton, Qt::NoButton, QPointF(100, 100)));
+}
+
+/**
+ * @brief TapToSeek_Drag_MovesCanvasWithoutSeek
+ * @details Read-only view with tap to seek: dragging moves the canvas and does not seek
+ */
+TEST_F(NotationViewInputControllerTapToSeekTests, TapToSeek_Drag_MovesCanvasWithoutSeek)
+{
+    EXPECT_CALL(m_view, moveCanvas(_, _))
+    .Times(::testing::AtLeast(1));
+
+    EXPECT_CALL(*m_playbackController, seekBeat(_, _, _))
+    .Times(0);
+
+    m_controller->mousePressEvent(make_mousePressEvent(Qt::LeftButton));
+    m_controller->mouseMoveEvent(make_mouseEvent(QEvent::MouseMove, Qt::NoButton, Qt::LeftButton, QPointF(100, 200)));
+    m_controller->mouseReleaseEvent(make_mouseEvent(QEvent::MouseButtonRelease, Qt::LeftButton, Qt::NoButton, QPointF(100, 200)));
 }

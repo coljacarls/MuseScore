@@ -58,6 +58,9 @@ AppWindow {
         height: 32
         title: root.title
 
+        //! Hidden in the immersive mode of the rehearsal page
+        visible: !window.immersiveMode
+
         windowVisibility: root.visibility
 
         appWindow: root
@@ -78,7 +81,9 @@ AppWindow {
     WindowContent {
         id: window
 
-        anchors.top: appTitleBar.bottom
+        //! NOTE: In the immersive mode, the main tab row is moved outside the window
+        anchors.top: window.immersiveMode ? parent.top : appTitleBar.bottom
+        anchors.topMargin: window.immersiveMode ? -window.immersiveTopOffset : 0
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom

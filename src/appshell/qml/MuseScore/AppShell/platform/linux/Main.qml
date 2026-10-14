@@ -34,6 +34,9 @@ AppWindow {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
+
+        //! Hidden in the immersive mode of the rehearsal page
+        visible: !window.immersiveMode
     }
 
     Loader {
@@ -56,7 +59,9 @@ AppWindow {
     WindowContent {
         id: window
 
-        anchors.top: appMenuBar.bottom
+        //! NOTE: In the immersive mode, the main tab row is moved outside the window
+        anchors.top: window.immersiveMode ? parent.top : appMenuBar.bottom
+        anchors.topMargin: window.immersiveMode ? -window.immersiveTopOffset : 0
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom

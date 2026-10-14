@@ -24,6 +24,7 @@
 
 #include <optional>
 #include <unordered_map>
+#include <vector>
 
 #include "modularity/ioc.h"
 #include "async/asyncable.h"
@@ -57,6 +58,8 @@ class PlaybackController : public IPlaybackController, public muse::async::Async
     muse::ContextInject<context::IGlobalContext> globalContext = { this };
     muse::ContextInject<muse::tours::IToursService> tours = { this };
     muse::ContextInject<muse::IInteractive> interactive = { this };
+
+    friend class PlaybackControllerTests;
 
 public:
     PlaybackController(const muse::modularity::ContextPtr& iocCtx);
@@ -113,6 +116,10 @@ public:
 
     const SoloMuteState& trackSoloMuteState(const engraving::InstrumentTrackId& trackId) const override;
     void setTrackSoloMuteState(const engraving::InstrumentTrackId& trackId, const SoloMuteState& state) override;
+
+    bool isSessionMixOverrideActive() const override;
+    void setSessionMixOverride(const SessionMix& mix) override;
+    void clearSessionMixOverride() override;
 
     void playElements(const std::vector<const engraving::EngravingItem*>& elements,
                       const PlayParams& params = PlayParams(), bool isMidi = false) override;
@@ -238,7 +245,12 @@ private:
 
     void onTrackNewlyAdded(const engraving::InstrumentTrackId& instrumentTrackId);
 
+    bool isSessionMixAppliedTo(const engraving::InstrumentTrackId& instrumentTrackId) const;
+    muse::audio::ControlParams applySessionMix(const engraving::InstrumentTrackId& instrumentTrackId, muse::audio::ControlParams control);
+    bool consumeSessionMixEcho(const engraving::InstrumentTrackId& instrumentTrackId, const muse::audio::ControlParams& params);
+
     muse::audio::secs_t playedTickToSecs(int tick) const;
+
 
     notation::INotationPtr m_notation;
     notation::IMasterNotationPtr m_masterNotation;
@@ -267,6 +279,12 @@ private:
     AuxTrackIdMap m_auxTrackIdMap;
 
     std::unordered_map<engraving::InstrumentTrackId, muse::audio::ControlParams> m_automatedControlParamsCache;
+
+    std::optional<SessionMix> m_sessionMix;
+
+    //! NOTE The engine reports applied control params asynchronously, so the params sent for the session mix
+    //! are remembered until they come back, to never persist them (even if the override is cleared meanwhile)
+    std::unordered_map<engraving::InstrumentTrackId, std::vector<muse::audio::ControlParams> > m_sessionMixEchoes;
 
     muse::Progress m_loadingProgress;
     size_t m_loadingTrackCount = 0;

@@ -71,6 +71,7 @@ static constexpr bool NEAR_NOTE_OR_REST = true;
 static constexpr bool DONT_PLAY_CHORD = false;
 
 static const muse::Uri NOTATION_REVIEW_PAGE_URI("musescore://notation/review");
+static const muse::Uri NOTATION_REHEARSAL_PAGE_URI("musescore://notation/rehearsal");
 
 using EngravingDebuggingOptions = engraving::IEngravingConfiguration::DebuggingOptions;
 static const std::map<muse::rcommand::Command, bool EngravingDebuggingOptions::*> s_debuggingCommands = {
@@ -1171,9 +1172,12 @@ bool NotationActionController::canReceiveAction(const ActionCode& code) const
         return false;
     }
 
-    // All actions are disabled on the review page
-    if (interactive() && interactive()->currentUri().val == NOTATION_REVIEW_PAGE_URI) {
-        return false;
+    // All actions are disabled on the review and rehearsal pages
+    if (interactive()) {
+        const muse::Uri currentUri = interactive()->currentUri().val;
+        if (currentUri == NOTATION_REVIEW_PAGE_URI || currentUri == NOTATION_REHEARSAL_PAGE_URI) {
+            return false;
+        }
     }
 
     if (globalContext()->playbackState()->isPlaying()) {
