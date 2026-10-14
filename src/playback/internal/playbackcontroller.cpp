@@ -399,6 +399,12 @@ void PlaybackController::clearSessionMixOverride()
     }
 
     m_sessionMix.reset();
+
+    //! NOTE Nothing to update when the override is cleared because the project was closed
+    if (!globalContext()->currentProject()) {
+        return;
+    }
+
     updateSoloMuteStates();
 }
 

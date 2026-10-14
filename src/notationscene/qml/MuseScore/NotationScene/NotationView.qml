@@ -47,6 +47,7 @@ FocusScope {
 
     property alias isNavigatorVisible: notationNavigator.visible
     property alias isBraillePanelVisible: brailleViewLoader.active
+    property alias isSwitchPanelVisible: tabPanel.visible
     property alias isMainView: notationView.isMainView
 
     property alias defaultNavigationControl: fakeNavCtrl
