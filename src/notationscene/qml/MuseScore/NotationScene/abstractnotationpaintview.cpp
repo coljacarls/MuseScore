@@ -1694,6 +1694,10 @@ void AbstractNotationPaintView::movePlaybackCursor(muse::midi::tick_t tick)
         return;
     }
 
+    if (followPlaybackCursor(newCursorRect)) {
+        return;
+    }
+
     //! NOTE: While stopped, the user positions the cursor by tapping:
     //! the view must not follow it, only bring it into view when it is outside (e.g. "to start")
     if (m_tapToSeek && !globalContext()->playbackState()->isPlaying()) {
@@ -1717,6 +1721,16 @@ void AbstractNotationPaintView::movePlaybackCursor(muse::midi::tick_t tick)
             }
         }
     }
+}
+
+bool AbstractNotationPaintView::followPlaybackCursor(const RectF&)
+{
+    return false;
+}
+
+qreal AbstractNotationPaintView::continuousPanelWidth() const
+{
+    return m_continuousPanel ? m_continuousPanel->width() : 0.0;
 }
 
 bool AbstractNotationPaintView::shouldAdjustCanvasVerticallyDuringPlayback(const RectF& cursorRect)

@@ -226,6 +226,13 @@ protected:
 
     virtual void onMatrixChanged(const muse::draw::Transform& oldMatrix, const muse::draw::Transform& newMatrix, bool overrideZoomType);
 
+    //! Lets a subclass position the canvas itself when the playback cursor moves.
+    //! Return true if the canvas was handled and the default follow behaviour must be skipped.
+    virtual bool followPlaybackCursor(const muse::RectF& cursorRect);
+
+    //! Width of the sticky panel (instrument names, clef, key) painted on the left in the continuous view
+    qreal continuousPanelWidth() const;
+
 protected slots:
     virtual void onViewSizeChanged();
 
