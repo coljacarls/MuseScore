@@ -36,11 +36,16 @@
 
 #include "abstractelementpopupmodel.h"
 
+#include "engraving/dom/accidental.h"
+#include "engraving/dom/chord.h"
 #include "engraving/dom/drumset.h"
 #include "engraving/dom/fret.h"
 #include "engraving/dom/harmony.h"
 #include "engraving/dom/measure.h"
 #include "engraving/dom/mscore.h"
+#include "engraving/dom/note.h"
+#include "engraving/dom/notedot.h"
+#include "engraving/dom/rest.h"
 #include "engraving/dom/score.h"
 #include "engraving/dom/segment.h"
 #include "engraving/dom/shadownote.h"
@@ -63,6 +68,49 @@ using namespace mu::engraving;
 using namespace muse::actions;
 
 static constexpr int PIXELSSTEPSFACTOR = 5;
+
+//! The chord or rest a hit element (notehead, stem, hook, accidental, dot, ...) belongs to
+static const EngravingItem* tapTarget(const EngravingItem* element)
+{
+    for (const EngravingObject* item = element; item; item = item->parent()) {
+        if (item->isChord() || item->isRest()) {
+            return toEngravingItem(item);
+        }
+
+        if (item->isMeasure() || item->isSegment()) {
+            break;
+        }
+    }
+
+    return nullptr;
+}
+
+//! One box around the whole note: heads, stem, hook, accidentals and dots (not the beam, other chords share it)
+static RectF tapTargetRect(const EngravingItem* target)
+{
+    RectF rect = target->canvasBoundingRect();
+
+    if (target->isChord()) {
+        for (const Note* note : toChord(target)->notes()) {
+            rect = rect.united(note->canvasBoundingRect());
+            if (note->accidental()) {
+                rect = rect.united(note->accidental()->canvasBoundingRect());
+            }
+            for (const NoteDot* dot : note->dots()) {
+                rect = rect.united(dot->canvasBoundingRect());
+            }
+        }
+    }
+
+    return rect;
+}
+
+static qreal distanceToRect(const PointF& pos, const RectF& rect)
+{
+    const qreal dx = std::max({ rect.left() - pos.x(), 0.0, pos.x() - rect.right() });
+    const qreal dy = std::max({ rect.top() - pos.y(), 0.0, pos.y() - rect.bottom() });
+    return std::hypot(dx, dy);
+}
 
 static bool seekAllowed(const mu::engraving::EngravingItem* element)
 {
@@ -1272,9 +1320,30 @@ void NotationViewInputController::mouseReleaseEvent(QMouseEvent* event)
         if (isTap) {
             if (m_tapHandler) {
                 const PointF pos = m_mouseDownInfo.logicalBeginPoint;
-                const EngravingItem* element = viewInteraction()->hitElement(pos, hitWidth());
-                const qreal r = 1.5 * hitWidth();
-                m_tapHandler(element ? element->canvasBoundingRect() : RectF(pos.x() - r, pos.y() - r, 2 * r, 2 * r));
+                //! Generous hit area; the closest chord or rest (any of its parts) is highlighted as a whole
+                const qreal hitRadius = 3 * hitWidth();
+                const EngravingItem* target = nullptr;
+                qreal best = 0.0;
+                for (const EngravingItem* hit : viewInteraction()->hitElements(pos, hitRadius)) {
+                    const EngravingItem* candidate = tapTarget(hit);
+                    if (!candidate) {
+                        continue;
+                    }
+
+                    const qreal distance = distanceToRect(pos, tapTargetRect(candidate));
+                    if (!target || distance < best) {
+                        target = candidate;
+                        best = distance;
+                    }
+                }
+
+                if (target) {
+                    m_tapHandler(tapTargetRect(target));
+                } else {
+                    const qreal r = 1.5 * hitWidth();
+                    const EngravingItem* element = viewInteraction()->hitElement(pos, hitWidth());
+                    m_tapHandler(element ? element->canvasBoundingRect() : RectF(pos.x() - r, pos.y() - r, 2 * r, 2 * r));
+                }
             } else {
                 seekToBeatAt(m_mouseDownInfo.logicalBeginPoint);
             }
