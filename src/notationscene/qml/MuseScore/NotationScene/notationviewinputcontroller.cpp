@@ -102,7 +102,9 @@ static RectF tapTargetRect(const EngravingItem* target)
         }
     }
 
-    return rect;
+    //! A little air around the note
+    const qreal margin = target->spatium() * 0.5;
+    return rect.adjusted(-margin, -margin, margin, margin);
 }
 
 static qreal distanceToRect(const PointF& pos, const RectF& rect)
