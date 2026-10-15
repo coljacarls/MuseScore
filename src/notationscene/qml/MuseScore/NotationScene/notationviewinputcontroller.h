@@ -154,6 +154,11 @@ public:
     bool tapToSeek() const;
     void setTapToSeek(bool tapToSeek);
 
+    //! While set, a tap (in the tap-to-seek mode) does not seek: the handler gets the bounding rect of the
+    //! tapped element (or a small rect around the tap) in logical coordinates instead
+    using TapHandler = std::function<void (const muse::RectF&)>;
+    void setTapHandler(const TapHandler& handler);
+
     void pinchToZoom(qreal scaleFactor, const QPointF& pos);
     void wheelEvent(QWheelEvent* event);
     void mousePressEvent(QMouseEvent* event);
@@ -246,6 +251,7 @@ private:
 
     bool m_readonly = false;
     bool m_tapToSeek = false;
+    TapHandler m_tapHandler;
     bool m_isTapCancelled = false;
     bool m_isCanvasDragged = false;
     bool m_tripleClickPending = false;

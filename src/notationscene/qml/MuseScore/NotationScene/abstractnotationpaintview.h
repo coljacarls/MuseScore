@@ -71,6 +71,8 @@ class AbstractNotationPaintView : public muse::uicomponents::QuickPaintedView, p
 
     Q_PROPERTY(bool readOnly READ readonly WRITE setReadonly NOTIFY readonlyChanged)
     Q_PROPERTY(bool tapToSeek READ tapToSeek WRITE setTapToSeek NOTIFY tapToSeekChanged)
+    //! A tap reports the tapped element's rect (tapped signal) instead of seeking
+    Q_PROPERTY(bool reportTaps READ reportTaps WRITE setReportTaps NOTIFY reportTapsChanged)
     //! ViewMode used instead of the notation's view state (which is persisted); -1 = no override
     Q_PROPERTY(int viewModeOverride READ viewModeOverride WRITE setViewModeOverride NOTIFY viewModeOverrideChanged)
 
@@ -114,6 +116,7 @@ public:
 
     muse::PointF fromLogical(const muse::PointF& point) const override;
     muse::RectF fromLogical(const muse::RectF& rect) const override;
+    Q_INVOKABLE QRectF logicalToView(const QRectF& logicRect) const;
 
     Q_INVOKABLE bool moveCanvas(qreal dx, qreal dy) override;
     void moveCanvasVertical(qreal dy) override;
@@ -171,6 +174,9 @@ public:
     bool tapToSeek() const;
     void setTapToSeek(bool tapToSeek);
 
+    bool reportTaps() const;
+    void setReportTaps(bool report);
+
     int viewModeOverride() const;
     void setViewModeOverride(int viewMode);
 
@@ -199,6 +205,9 @@ signals:
 
     void readonlyChanged();
     void tapToSeekChanged();
+    void reportTapsChanged();
+    //! The rect of the tapped element in logical coordinates (see reportTaps)
+    void tapped(const QRectF& logicRect);
     void viewModeOverrideChanged();
 
 protected:
@@ -287,6 +296,7 @@ private:
 
     void onShowItemRequested(const INotationInteraction::ShowItemRequest& request);
 
+    void applyTapHandler();
     void onPlayingChanged();
     void updatePlaybackCursorInterpolated();
     void movePlaybackCursor(muse::midi::tick_t tick);
@@ -326,6 +336,7 @@ private:
 
     bool m_readonly = false;
     bool m_tapToSeek = false;
+    bool m_reportTaps = false;
     int m_viewModeOverride = -1;
     bool m_publishMode = false;
     int m_lastAcceptedKey = -1;

@@ -291,6 +291,11 @@ bool NotationViewInputController::isTapToSeekActive() const
     return m_readonly && m_tapToSeek;
 }
 
+void NotationViewInputController::setTapHandler(const TapHandler& handler)
+{
+    m_tapHandler = handler;
+}
+
 int NotationViewInputController::tapToSeekDragThreshold() const
 {
     return std::max(4, QGuiApplication::styleHints()->startDragDistance());
@@ -1265,7 +1270,14 @@ void NotationViewInputController::mouseReleaseEvent(QMouseEvent* event)
         m_isTapCancelled = false;
 
         if (isTap) {
-            seekToBeatAt(m_mouseDownInfo.logicalBeginPoint);
+            if (m_tapHandler) {
+                const PointF pos = m_mouseDownInfo.logicalBeginPoint;
+                const EngravingItem* element = viewInteraction()->hitElement(pos, hitWidth());
+                const qreal r = 1.5 * hitWidth();
+                m_tapHandler(element ? element->canvasBoundingRect() : RectF(pos.x() - r, pos.y() - r, 2 * r, 2 * r));
+            } else {
+                seekToBeatAt(m_mouseDownInfo.logicalBeginPoint);
+            }
         }
 
         return;

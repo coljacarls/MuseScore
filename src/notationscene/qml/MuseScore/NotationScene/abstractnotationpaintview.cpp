@@ -123,6 +123,7 @@ void AbstractNotationPaintView::load()
 
     m_inputController->setReadonly(m_readonly);
     m_inputController->setTapToSeek(m_tapToSeek);
+    applyTapHandler();
     m_inputController->init();
 
     m_elapsedTimer.start();
@@ -1541,6 +1542,37 @@ void AbstractNotationPaintView::setTapToSeek(bool tapToSeek)
     emit tapToSeekChanged();
 }
 
+bool AbstractNotationPaintView::reportTaps() const
+{
+    return m_reportTaps;
+}
+
+void AbstractNotationPaintView::setReportTaps(bool report)
+{
+    if (m_reportTaps == report) {
+        return;
+    }
+
+    m_reportTaps = report;
+    if (m_inputController) {
+        applyTapHandler();
+    }
+
+    emit reportTapsChanged();
+}
+
+void AbstractNotationPaintView::applyTapHandler()
+{
+    if (!m_reportTaps) {
+        m_inputController->setTapHandler(nullptr);
+        return;
+    }
+
+    m_inputController->setTapHandler([this](const RectF& rect) {
+        emit tapped(rect.toQRectF());
+    });
+}
+
 int AbstractNotationPaintView::viewModeOverride() const
 {
     return m_viewModeOverride;
@@ -1607,6 +1639,11 @@ PointF AbstractNotationPaintView::fromLogical(const PointF& point) const
 RectF AbstractNotationPaintView::fromLogical(const RectF& rect) const
 {
     return m_matrix.map(rect);
+}
+
+QRectF AbstractNotationPaintView::logicalToView(const QRectF& logicRect) const
+{
+    return fromLogical(RectF::fromQRectF(logicRect)).toQRectF();
 }
 
 bool AbstractNotationPaintView::isInited() const

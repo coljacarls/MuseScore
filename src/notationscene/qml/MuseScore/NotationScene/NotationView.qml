@@ -41,6 +41,8 @@ FocusScope {
     property alias publishMode: notationView.publishMode
     property alias readOnly: notationView.readOnly
     property alias tapToSeek: notationView.tapToSeek
+    property alias reportTaps: notationView.reportTaps
+    signal tapped(rect logicRect)
     property alias viewModeOverride: notationView.viewModeOverride
 
     property alias paintView: notationView
@@ -110,6 +112,10 @@ FocusScope {
                 NotationPaintView {
                     id: notationView
                     anchors.fill: parent
+
+                    onTapped: function(logicRect) {
+                        root.tapped(logicRect)
+                    }
 
                     property NavigationPanel navigationPanel: NavigationPanel {
                         name: "ScoreView"
