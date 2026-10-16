@@ -237,30 +237,64 @@ Item {
         color: root.accentColor
     }
 
+    //! A fader changes only by a horizontal swipe or by a tap on the ruler. A drag that is mostly vertical belongs to
+    //! the Flickable of the track list (so that scrolling over a fader does not move it by accident).
     MouseArea {
         id: mouseArea
 
+        property point pressPoint: Qt.point(0, 0)
+        property bool swiping: false
+        property bool scrolling: false
+
         anchors.fill: parent
 
-        // Don't let the Flickable of the track list steal the drag
-        preventStealing: true
+        // Once the swipe is horizontal, the Flickable must not steal it
+        preventStealing: mouseArea.swiping
 
         onPressed: function(mouse) {
             navCtrl.requestActiveByInteraction()
 
+            mouseArea.pressPoint = Qt.point(mouse.x, mouse.y)
+            mouseArea.swiping = false
+            mouseArea.scrolling = false
+
             var onHandle = mouse.x >= prv.handleX && mouse.x <= prv.handleX + prv.handleWidth
-            if (onHandle) {
-                prv.dragStartOffset = mouse.x - (prv.handleX + prv.handleWidth / 2)
-            } else {
-                prv.dragStartOffset = 0
-                prv.moveTo(prv.xToDb(mouse.x))
-            }
+            prv.dragStartOffset = onHandle ? mouse.x - (prv.handleX + prv.handleWidth / 2) : 0
         }
 
         onPositionChanged: function(mouse) {
-            if (pressed) {
-                prv.moveTo(prv.xToDb(mouse.x - prv.dragStartOffset))
+            if (!pressed || mouseArea.scrolling) {
+                return
             }
+
+            if (!mouseArea.swiping) {
+                var dx = Math.abs(mouse.x - mouseArea.pressPoint.x)
+                var dy = Math.abs(mouse.y - mouseArea.pressPoint.y)
+
+                if (Math.max(dx, dy) < Qt.styleHints.startDragDistance) {
+                    return
+                }
+
+                if (dy >= dx) {
+                    mouseArea.scrolling = true
+                    return
+                }
+
+                mouseArea.swiping = true
+            }
+
+            prv.moveTo(prv.xToDb(mouse.x - prv.dragStartOffset))
+        }
+
+        onClicked: function(mouse) {
+            if (!mouseArea.swiping && !mouseArea.scrolling) {
+                prv.moveTo(prv.xToDb(mouseArea.pressPoint.x))
+            }
+        }
+
+        onCanceled: {
+            mouseArea.swiping = false
+            mouseArea.scrolling = false
         }
 
         onDoubleClicked: {
