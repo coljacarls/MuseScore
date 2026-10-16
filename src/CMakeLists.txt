@@ -101,7 +101,7 @@ endif()
 
 # App (main)
 add_subdirectory(app)
-if (MUE_CONFIGURATION_IS_APPWEB)
+if (MUE_CONFIGURATION_IS_APPWEB OR MUE_BUILD_APPJS_MODULE)
     add_subdirectory(web/appjs)
 endif()
 

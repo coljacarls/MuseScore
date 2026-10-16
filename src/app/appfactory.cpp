@@ -284,7 +284,7 @@
 #include "stubs/project/projectstubmodule.h"
 #endif
 
-#ifdef MUE_CONFIGURATION_IS_APPWEB
+#if defined(MUE_CONFIGURATION_IS_APPWEB) || defined(MUE_BUILD_APPJS_MODULE)
 #include "web/appjs/appjsmodule.h"
 #endif
 
@@ -444,7 +444,7 @@ std::shared_ptr<muse::IApplication> AppFactory::newGuiApp(const std::shared_ptr<
     app->addModule(new muse::update::UpdateModule());
     app->addModule(new muse::workspace::WorkspaceModule());
 
-#ifdef MUE_CONFIGURATION_IS_APPWEB
+#if defined(MUE_CONFIGURATION_IS_APPWEB) || defined(MUE_BUILD_APPJS_MODULE)
     app->addModule(new mu::appjs::AppJsModule());
 #endif
 
