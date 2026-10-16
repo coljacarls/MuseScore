@@ -124,6 +124,7 @@ void AbstractNotationPaintView::load()
     m_inputController->setReadonly(m_readonly);
     m_inputController->setTapToSeek(m_tapToSeek);
     applyTapHandler();
+    applyScrubHandler();
     m_inputController->init();
 
     m_elapsedTimer.start();
@@ -1559,6 +1560,39 @@ void AbstractNotationPaintView::setReportTaps(bool report)
     }
 
     emit reportTapsChanged();
+}
+
+bool AbstractNotationPaintView::reportScrubs() const
+{
+    return m_reportScrubs;
+}
+
+void AbstractNotationPaintView::setReportScrubs(bool report)
+{
+    if (m_reportScrubs == report) {
+        return;
+    }
+
+    m_reportScrubs = report;
+    if (m_inputController) {
+        applyScrubHandler();
+    }
+
+    emit reportScrubsChanged();
+}
+
+void AbstractNotationPaintView::applyScrubHandler()
+{
+    if (!m_reportScrubs) {
+        m_inputController->setScrubHandler({});
+        return;
+    }
+
+    NotationViewInputController::ScrubHandler handler;
+    handler.begin = [this](const PointF& pos) { emit scrubBegan(pos.toQPointF()); };
+    handler.move = [this](const PointF& pos) { emit scrubMoved(pos.toQPointF()); };
+    handler.end = [this]() { emit scrubEnded(); };
+    m_inputController->setScrubHandler(handler);
 }
 
 void AbstractNotationPaintView::applyTapHandler()

@@ -22,6 +22,7 @@
 #pragma once
 
 #include <QtEvents>
+#include <QTimer>
 
 #include "../../../internal/inotationviewcontroller.h"
 
@@ -159,6 +160,16 @@ public:
     using TapHandler = std::function<void (const muse::RectF&)>;
     void setTapHandler(const TapHandler& handler);
 
+    //! While set, pressing and holding (in the tap-to-seek mode) for a while starts a scrub: the handler gets the
+    //! position (logical coordinates) where the press began (begin), every move of the finger or mouse (move) and the
+    //! release (end). The canvas is not moved and the release does not count as a tap during a scrub.
+    struct ScrubHandler {
+        std::function<void (const muse::PointF&)> begin;
+        std::function<void (const muse::PointF&)> move;
+        std::function<void ()> end;
+    };
+    void setScrubHandler(const ScrubHandler& handler);
+
     void pinchToZoom(qreal scaleFactor, const QPointF& pos);
     void wheelEvent(QWheelEvent* event);
     void mousePressEvent(QMouseEvent* event);
@@ -236,6 +247,7 @@ private:
 
     bool isTapToSeekActive() const;
     int tapToSeekDragThreshold() const;
+    void cancelScrubPress();
     void seekToBeatAt(const muse::PointF& logicPos);
 
     bool startTextEditingAllowed() const;
@@ -253,6 +265,9 @@ private:
     bool m_tapToSeek = false;
     TapHandler m_tapHandler;
     bool m_isTapCancelled = false;
+    ScrubHandler m_scrubHandler;
+    QTimer m_scrubTimer;
+    bool m_isScrubbing = false;
     bool m_isCanvasDragged = false;
     bool m_tripleClickPending = false;
 

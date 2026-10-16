@@ -73,6 +73,8 @@ class AbstractNotationPaintView : public muse::uicomponents::QuickPaintedView, p
     Q_PROPERTY(bool tapToSeek READ tapToSeek WRITE setTapToSeek NOTIFY tapToSeekChanged)
     //! A tap reports the tapped element's rect (tapped signal) instead of seeking
     Q_PROPERTY(bool reportTaps READ reportTaps WRITE setReportTaps NOTIFY reportTapsChanged)
+    //! Pressing and holding reports a scrub (scrubBegan, scrubMoved, scrubEnded) instead of moving the canvas
+    Q_PROPERTY(bool reportScrubs READ reportScrubs WRITE setReportScrubs NOTIFY reportScrubsChanged)
     //! ViewMode used instead of the notation's view state (which is persisted); -1 = no override
     Q_PROPERTY(int viewModeOverride READ viewModeOverride WRITE setViewModeOverride NOTIFY viewModeOverrideChanged)
 
@@ -176,6 +178,9 @@ public:
     void setTapToSeek(bool tapToSeek);
 
     bool reportTaps() const;
+
+    bool reportScrubs() const;
+    void setReportScrubs(bool report);
     void setReportTaps(bool report);
 
     int viewModeOverride() const;
@@ -207,6 +212,11 @@ signals:
     void readonlyChanged();
     void tapToSeekChanged();
     void reportTapsChanged();
+    void reportScrubsChanged();
+    //! Positions in logical coordinates (see reportScrubs)
+    void scrubBegan(const QPointF& logicPos);
+    void scrubMoved(const QPointF& logicPos);
+    void scrubEnded();
     //! The rect of the tapped element in logical coordinates (see reportTaps)
     void tapped(const QRectF& logicRect);
     void viewModeOverrideChanged();
@@ -298,6 +308,7 @@ private:
     void onShowItemRequested(const INotationInteraction::ShowItemRequest& request);
 
     void applyTapHandler();
+    void applyScrubHandler();
     void onPlayingChanged();
     void updatePlaybackCursorInterpolated();
     void movePlaybackCursor(muse::midi::tick_t tick);
@@ -338,6 +349,7 @@ private:
     bool m_readonly = false;
     bool m_tapToSeek = false;
     bool m_reportTaps = false;
+    bool m_reportScrubs = false;
     int m_viewModeOverride = -1;
     bool m_publishMode = false;
     int m_lastAcceptedKey = -1;

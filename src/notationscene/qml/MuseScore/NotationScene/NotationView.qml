@@ -43,6 +43,10 @@ FocusScope {
     property alias tapToSeek: notationView.tapToSeek
     property alias reportTaps: notationView.reportTaps
     signal tapped(rect logicRect)
+    property alias reportScrubs: notationView.reportScrubs
+    signal scrubBegan(point logicPos)
+    signal scrubMoved(point logicPos)
+    signal scrubEnded()
     property alias viewModeOverride: notationView.viewModeOverride
 
     property alias paintView: notationView
@@ -115,6 +119,18 @@ FocusScope {
 
                     onTapped: function(logicRect) {
                         root.tapped(logicRect)
+                    }
+
+                    onScrubBegan: function(logicPos) {
+                        root.scrubBegan(logicPos)
+                    }
+
+                    onScrubMoved: function(logicPos) {
+                        root.scrubMoved(logicPos)
+                    }
+
+                    onScrubEnded: {
+                        root.scrubEnded()
                     }
 
                     property NavigationPanel navigationPanel: NavigationPanel {

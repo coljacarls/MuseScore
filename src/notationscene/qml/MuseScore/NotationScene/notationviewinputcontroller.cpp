@@ -134,6 +134,16 @@ static bool seekAllowed(const mu::engraving::EngravingItem* element)
 NotationViewInputController::NotationViewInputController(IControlledView* view, const muse::modularity::ContextPtr& iocCtx)
     : muse::Contextable(iocCtx), m_view(view)
 {
+    m_scrubTimer.setSingleShot(true);
+    m_scrubTimer.setInterval(500);
+    QObject::connect(&m_scrubTimer, &QTimer::timeout, [this]() {
+        if (m_mouseDownInfo.dragAction == MouseDownInfo::Nothing || m_isTapCancelled || m_isCanvasDragged || !m_scrubHandler.begin) {
+            return;
+        }
+
+        m_isScrubbing = true;
+        m_scrubHandler.begin(m_mouseDownInfo.logicalBeginPoint);
+    });
 }
 
 NotationViewInputController::~NotationViewInputController()
@@ -344,6 +354,24 @@ bool NotationViewInputController::isTapToSeekActive() const
 void NotationViewInputController::setTapHandler(const TapHandler& handler)
 {
     m_tapHandler = handler;
+}
+
+void NotationViewInputController::setScrubHandler(const ScrubHandler& handler)
+{
+    cancelScrubPress();
+    m_scrubHandler = handler;
+}
+
+void NotationViewInputController::cancelScrubPress()
+{
+    m_scrubTimer.stop();
+
+    if (m_isScrubbing) {
+        m_isScrubbing = false;
+        if (m_scrubHandler.end) {
+            m_scrubHandler.end();
+        }
+    }
 }
 
 int NotationViewInputController::tapToSeekDragThreshold() const
@@ -689,6 +717,7 @@ void NotationViewInputController::endOfScore()
 void NotationViewInputController::pinchToZoom(qreal scaleFactor, const QPointF& pos)
 {
     m_isTapCancelled = true;
+    cancelScrubPress();
 
     double scale = m_view->currentScaling() * scaleFactor;
     setScaling(scale, PointF::fromQPointF(pos));
@@ -766,6 +795,9 @@ void NotationViewInputController::mousePressEvent(QMouseEvent* event)
 
     // Tap to seek: the seek happens on release, so that dragging keeps moving the canvas
     if (isTapToSeekActive()) {
+        if (button == Qt::LeftButton && m_scrubHandler.begin && !m_tapHandler) {
+            m_scrubTimer.start();
+        }
         return;
     }
 
@@ -1165,6 +1197,15 @@ void NotationViewInputController::mouseMoveEvent(QMouseEvent* event)
 
     const QPointF physicalDragDelta = event->pos() - m_mouseDownInfo.physicalBeginPoint;
 
+    if (m_isScrubbing) {
+        m_scrubHandler.move(m_view->toLogical(event->pos()));
+        return;
+    }
+
+    if (m_scrubTimer.isActive() && physicalDragDelta.manhattanLength() > tapToSeekDragThreshold()) {
+        m_scrubTimer.stop();
+    }
+
     const bool isDragStarted = m_isCanvasDragged
                                || viewInteraction()->isDragStarted()
                                || viewInteraction()->isOutgoingDragStarted();
@@ -1310,6 +1351,16 @@ void NotationViewInputController::mouseReleaseEvent(QMouseEvent* event)
     }
 
     if (isTapToSeekActive()) {
+        if (m_isScrubbing) {
+            m_mouseDownInfo.dragAction = MouseDownInfo::Nothing;
+            m_isCanvasDragged = false;
+            m_isTapCancelled = false;
+            cancelScrubPress();
+            return;
+        }
+
+        m_scrubTimer.stop();
+
         const QPointF physicalDelta = event->pos() - m_mouseDownInfo.physicalBeginPoint;
         const bool isTap = event->button() == Qt::LeftButton
                            && !m_isCanvasDragged
