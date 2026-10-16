@@ -75,6 +75,8 @@ class AbstractNotationPaintView : public muse::uicomponents::QuickPaintedView, p
     Q_PROPERTY(bool reportTaps READ reportTaps WRITE setReportTaps NOTIFY reportTapsChanged)
     //! Pressing and holding reports a scrub (scrubBegan, scrubMoved, scrubEnded) instead of moving the canvas
     Q_PROPERTY(bool reportScrubs READ reportScrubs WRITE setReportScrubs NOTIFY reportScrubsChanged)
+    //! Milliseconds the press is held until a scrub starts (0: with the press)
+    Q_PROPERTY(int scrubDelay READ scrubDelay WRITE setScrubDelay NOTIFY scrubDelayChanged)
     //! ViewMode used instead of the notation's view state (which is persisted); -1 = no override
     Q_PROPERTY(int viewModeOverride READ viewModeOverride WRITE setViewModeOverride NOTIFY viewModeOverrideChanged)
 
@@ -181,6 +183,9 @@ public:
 
     bool reportScrubs() const;
     void setReportScrubs(bool report);
+
+    int scrubDelay() const;
+    void setScrubDelay(int delayMs);
     void setReportTaps(bool report);
 
     int viewModeOverride() const;
@@ -213,6 +218,7 @@ signals:
     void tapToSeekChanged();
     void reportTapsChanged();
     void reportScrubsChanged();
+    void scrubDelayChanged();
     //! Positions in logical coordinates (see reportScrubs)
     void scrubBegan(const QPointF& logicPos);
     void scrubMoved(const QPointF& logicPos);
@@ -350,6 +356,7 @@ private:
     bool m_tapToSeek = false;
     bool m_reportTaps = false;
     bool m_reportScrubs = false;
+    int m_scrubDelay = 500;
     int m_viewModeOverride = -1;
     bool m_publishMode = false;
     int m_lastAcceptedKey = -1;

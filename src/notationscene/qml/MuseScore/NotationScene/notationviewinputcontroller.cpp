@@ -362,6 +362,11 @@ void NotationViewInputController::setScrubHandler(const ScrubHandler& handler)
     m_scrubHandler = handler;
 }
 
+void NotationViewInputController::setScrubDelay(int delayMs)
+{
+    m_scrubTimer.setInterval(std::max(delayMs, 0));
+}
+
 void NotationViewInputController::cancelScrubPress()
 {
     m_scrubTimer.stop();
@@ -775,6 +780,11 @@ void NotationViewInputController::wheelEvent(QWheelEvent* event)
 
 void NotationViewInputController::mousePressEvent(QMouseEvent* event)
 {
+    //! A touch held on the score also sends a right button press: it must not interrupt the scrub
+    if (m_isScrubbing && event->button() != Qt::LeftButton) {
+        return;
+    }
+
     PointF logicPos = m_view->toLogical(event->pos());
     Qt::MouseButton button = event->button();
 
@@ -787,6 +797,7 @@ void NotationViewInputController::mousePressEvent(QMouseEvent* event)
     m_shouldStartEditOnLeftClickRelease = false;
     m_ignoreNextMouseContextMenuEvent = false;
     m_isTapCancelled = false;
+    m_pressTimer.start();
 
     // When using MiddleButton, just start moving the canvas
     if (button == Qt::MiddleButton) {
@@ -796,7 +807,12 @@ void NotationViewInputController::mousePressEvent(QMouseEvent* event)
     // Tap to seek: the seek happens on release, so that dragging keeps moving the canvas
     if (isTapToSeekActive()) {
         if (button == Qt::LeftButton && m_scrubHandler.begin && !m_tapHandler) {
-            m_scrubTimer.start();
+            if (m_scrubTimer.interval() == 0) {
+                m_isScrubbing = true;
+                m_scrubHandler.begin(logicPos);
+            } else {
+                m_scrubTimer.start();
+            }
         }
         return;
     }
@@ -1346,6 +1362,10 @@ void NotationViewInputController::startDragElements(ElementType elementsType, co
 
 void NotationViewInputController::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (m_isScrubbing && event->button() != Qt::LeftButton) {
+        return;
+    }
+
     if (m_mouseDownInfo.dragAction == MouseDownInfo::Nothing) {
         return;
     }
@@ -1365,6 +1385,7 @@ void NotationViewInputController::mouseReleaseEvent(QMouseEvent* event)
         const bool isTap = event->button() == Qt::LeftButton
                            && !m_isCanvasDragged
                            && !m_isTapCancelled
+                           && m_pressTimer.isValid() && m_pressTimer.elapsed() <= TAP_MAX_DURATION_MS
                            && physicalDelta.manhattanLength() <= tapToSeekDragThreshold();
 
         m_mouseDownInfo.dragAction = MouseDownInfo::Nothing;

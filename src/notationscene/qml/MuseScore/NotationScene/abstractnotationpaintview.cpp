@@ -123,6 +123,7 @@ void AbstractNotationPaintView::load()
 
     m_inputController->setReadonly(m_readonly);
     m_inputController->setTapToSeek(m_tapToSeek);
+    m_inputController->setScrubDelay(m_scrubDelay);
     applyTapHandler();
     applyScrubHandler();
     m_inputController->init();
@@ -1414,6 +1415,13 @@ bool AbstractNotationPaintView::event(QEvent* event)
     QEvent::Type eventType = event->type();
     auto keyEvent = dynamic_cast<QKeyEvent*>(event);
 
+    if (eventType == QEvent::Type::ContextMenu && m_inputController->suppressMouseContextMenu()) {
+        const QContextMenuEvent* menuEvent = static_cast<QContextMenuEvent*>(event);
+        if (menuEvent->reason() != QContextMenuEvent::Keyboard) {
+            return true;
+        }
+    }
+
     bool isContextMenuEvent = ((eventType == QEvent::ShortcutOverride && keyEvent->key() == Qt::Key_Menu)
                                || eventType == QEvent::Type::ContextMenu) && hasFocus();
 
@@ -1579,6 +1587,25 @@ void AbstractNotationPaintView::setReportScrubs(bool report)
     }
 
     emit reportScrubsChanged();
+}
+
+int AbstractNotationPaintView::scrubDelay() const
+{
+    return m_scrubDelay;
+}
+
+void AbstractNotationPaintView::setScrubDelay(int delayMs)
+{
+    if (m_scrubDelay == delayMs) {
+        return;
+    }
+
+    m_scrubDelay = delayMs;
+    if (m_inputController) {
+        m_inputController->setScrubDelay(delayMs);
+    }
+
+    emit scrubDelayChanged();
 }
 
 void AbstractNotationPaintView::applyScrubHandler()

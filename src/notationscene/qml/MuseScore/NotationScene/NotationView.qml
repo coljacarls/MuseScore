@@ -44,6 +44,7 @@ FocusScope {
     property alias reportTaps: notationView.reportTaps
     signal tapped(rect logicRect)
     property alias reportScrubs: notationView.reportScrubs
+    property alias scrubDelay: notationView.scrubDelay
     signal scrubBegan(point logicPos)
     signal scrubMoved(point logicPos)
     signal scrubEnded()

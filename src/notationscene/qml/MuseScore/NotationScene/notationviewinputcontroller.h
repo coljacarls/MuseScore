@@ -22,6 +22,7 @@
 #pragma once
 
 #include <QtEvents>
+#include <QElapsedTimer>
 #include <QTimer>
 
 #include "../../../internal/inotationviewcontroller.h"
@@ -169,6 +170,8 @@ public:
         std::function<void ()> end;
     };
     void setScrubHandler(const ScrubHandler& handler);
+    //! How long (ms) the press is held until the scrub starts; 0: it starts with the press
+    void setScrubDelay(int delayMs);
 
     void pinchToZoom(qreal scaleFactor, const QPointF& pos);
     void wheelEvent(QWheelEvent* event);
@@ -187,6 +190,9 @@ public:
     QVariant inputMethodQuery(Qt::InputMethodQuery query) const;
 
     bool ignoreNextMouseContextMenuEvent() const { return m_ignoreNextMouseContextMenuEvent; }
+    //! Touching and holding (touch screens, pens) triggers the context menu like a right click: the tap-to-seek mode
+    //! (read-only player) has no context menu, a hold there is a scrub or a tap on a note
+    bool suppressMouseContextMenu() const { return isTapToSeekActive(); }
 
     void dragEnterEvent(QDragEnterEvent* event);
     void dragLeaveEvent(QDragLeaveEvent* event);
@@ -266,6 +272,9 @@ private:
     TapHandler m_tapHandler;
     bool m_isTapCancelled = false;
     ScrubHandler m_scrubHandler;
+    //! A press that is held longer than this is not a tap (it does not place the playhead)
+    static constexpr qint64 TAP_MAX_DURATION_MS = 500;
+    QElapsedTimer m_pressTimer;
     QTimer m_scrubTimer;
     bool m_isScrubbing = false;
     bool m_isCanvasDragged = false;
