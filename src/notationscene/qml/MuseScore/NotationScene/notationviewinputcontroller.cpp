@@ -1265,7 +1265,8 @@ void NotationViewInputController::mouseMoveEvent(QMouseEvent* event)
     }
 
     // move canvas
-    if (!isNoteEnterMode || isMiddleButton) {
+    //! NOTE The app reports taps (laser pointer): dragging does not move the canvas then
+    if ((!isNoteEnterMode || isMiddleButton) && !m_tapHandler) {
         const PointF logicalDragDelta = logicPos - m_mouseDownInfo.logicalBeginPoint;
         m_view->moveCanvas(logicalDragDelta.x(), logicalDragDelta.y());
 

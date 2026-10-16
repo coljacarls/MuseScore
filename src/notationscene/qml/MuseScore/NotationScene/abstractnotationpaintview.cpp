@@ -1641,6 +1641,11 @@ RectF AbstractNotationPaintView::fromLogical(const RectF& rect) const
     return m_matrix.map(rect);
 }
 
+QPointF AbstractNotationPaintView::viewToLogical(const QPointF& viewPos) const
+{
+    return toLogical(viewPos).toQPointF();
+}
+
 QRectF AbstractNotationPaintView::logicalToView(const QRectF& logicRect) const
 {
     return fromLogical(RectF::fromQRectF(logicRect)).toQRectF();

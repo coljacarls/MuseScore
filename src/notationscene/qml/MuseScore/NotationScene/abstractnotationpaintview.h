@@ -117,6 +117,7 @@ public:
     muse::PointF fromLogical(const muse::PointF& point) const override;
     muse::RectF fromLogical(const muse::RectF& rect) const override;
     Q_INVOKABLE QRectF logicalToView(const QRectF& logicRect) const;
+    Q_INVOKABLE QPointF viewToLogical(const QPointF& viewPos) const;
 
     Q_INVOKABLE bool moveCanvas(qreal dx, qreal dy) override;
     void moveCanvasVertical(qreal dy) override;
