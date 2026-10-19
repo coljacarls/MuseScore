@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <optional>
 #include <unordered_map>
 
 #include <QTime>
@@ -40,6 +41,7 @@ static constexpr muse::audio::aux_channel_idx_t REVERB_CHANNEL_IDX = 0;
 struct SessionTrackMix {
     bool audible = true;
     float gainOffsetDb = 0.f; // relative to the track's volume in the score mix, <= 0
+    std::optional<float> balance; // -1 (left)..1 (right), replaces the balance in the score mix; unset: as in the score
 };
 
 using SessionMix = std::unordered_map<engraving::InstrumentTrackId, SessionTrackMix>;

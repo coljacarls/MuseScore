@@ -428,6 +428,10 @@ ControlParams PlaybackController::applySessionMix(const InstrumentTrackId& instr
 
     control.volume = offsetVolume(control.volume, mix.gainOffsetDb);
 
+    if (mix.balance) {
+        control.balance = muse::audio::balance_t::make(std::clamp(*mix.balance, -1.f, 1.f));
+    }
+
     std::vector<ControlParams>& echoes = m_sessionMixEchoes[instrumentTrackId];
     if (echoes.empty() || echoes.back() != control) {
         echoes.push_back(control);
