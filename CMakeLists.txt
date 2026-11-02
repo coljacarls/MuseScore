@@ -248,9 +248,9 @@ add_subdirectory(src)
 # Setup Packaging
 ###########################################
 
-if (OS_IS_LIN)
+if (OS_IS_LIN AND NOT MUE_CONFIGURATION_IS_APPEXTERNAL)
     include(packaging/Linux+BSD/SetupAppImagePackaging)
-endif(OS_IS_LIN)
+endif()
 
 if (OS_IS_WIN)
     include(packaging/Windows/SetupWindowsPackaging)

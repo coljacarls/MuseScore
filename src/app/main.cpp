@@ -139,7 +139,11 @@ int main(int argc, char** argv)
 #ifndef MUSE_APP_INSTALL_SUFFIX
 #define MUSE_APP_INSTALL_SUFFIX ""
 #endif
+#ifdef MUE_APP_DESKTOP_FILE_NAME
+    QGuiApplication::setDesktopFileName(MUE_APP_DESKTOP_FILE_NAME);
+#else
     QGuiApplication::setDesktopFileName("org.musescore.MuseScore" MUSE_APP_INSTALL_SUFFIX);
+#endif
 #endif
 
     using namespace muse;
