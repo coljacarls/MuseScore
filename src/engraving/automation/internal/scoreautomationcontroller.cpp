@@ -472,6 +472,31 @@ void ScoreAutomationController::editPoints(const AutomationCurveKey& key, Automa
     m_automationData->editPoints(key, edits);
 }
 
+//! The measures of a repeat segment may be multimeasure rests, which hold no annotations (tempo, dynamics, fermatas).
+//! Replaces them with the measures they stand for
+static std::vector<const Measure*> underlyingMeasures(const std::vector<const Measure*>& measures)
+{
+    std::vector<const Measure*> result;
+    result.reserve(measures.size());
+
+    for (const Measure* measure : measures) {
+        if (!measure->isMMRest()) {
+            result.push_back(measure);
+            continue;
+        }
+
+        const Measure* last = measure->mmRestLast();
+        for (const Measure* m = measure->mmRestFirst(); m; m = m->nextMeasure()) {
+            result.push_back(m);
+            if (m == last) {
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
 void ScoreAutomationController::update(const UpdateRequest& request, const AutomationCurveMap& curves)
 {
     TRACEFUNC;
@@ -538,7 +563,7 @@ void ScoreAutomationController::update(const UpdateRequest& request, const Autom
         // measures from before tickFrom, and all their points were cleared, so rebuild them in full
         const int measureFrom = (it == repeatFromIt) ? std::max(seg->tick, request.tickFrom) : seg->tick;
 
-        const std::vector<const Measure*>& segMeasures = seg->measureList();
+        const std::vector<const Measure*> segMeasures = underlyingMeasures(seg->measureList());
         for (size_t mi = 0; mi < segMeasures.size(); ++mi) {
             const Measure* measure = segMeasures[mi];
             if (measure->endTick().ticks() <= measureFrom) {
@@ -1561,7 +1586,7 @@ void ScoreAutomationController::mirrorToMeasureRepeats(const RepeatSegment* targ
 
     // A MeasureRepeat can only ever sit on the measure's first ChordRest segment
     MeasureRepeats measureRepeats;
-    for (const Measure* measure : targetSeg->measureList()) {
+    for (const Measure* measure : underlyingMeasures(targetSeg->measureList())) {
         if (const Segment* firstChordRestSegment = measure->first(SegmentType::ChordRest)) {
             collectMeasureRepeats(firstChordRestSegment, tickOffset, range, measureRepeats);
         }
